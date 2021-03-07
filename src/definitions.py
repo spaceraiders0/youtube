@@ -110,6 +110,43 @@ def select(options: list, prompt: str = ">>>: ",
             continue
 
 
-def video_info() -> dict:
-    """Returns the information for a video.
+def video_info(video: dict) -> dict:
+    """Extracts the data from a video dictionary and simplifies it.
     """
+
+    info = {}
+
+    info["id"] = video["id"]
+    info["link"] = video["link"]
+    info["views"] = int(video["viewCount"]["text"])
+    info["title"] = video["title"]
+    info["keywords"] = video["keywords"]
+    info["channel_name"] = video["channel"]["name"]
+    info["channel_id"] = video["channel"]["id"]
+    info["channel_link"] = video["channel"]["link"]
+    info["publish_date"] = video["publishDate"]
+    info["upload_date"] = video["uploadDate"]
+    info["average_rating"] = int(video["averageRating"])
+    info["description"] = video["description"]
+
+    suffix = 1
+
+    for thumbnail_dict in video["thumbnails"]:
+        info[f"url_x{suffix}"] = thumbnail_dict["url"]
+        info[f"url_x{suffix}"] = thumbnail_dict["url"]
+        info[f"width_x{suffix}"] = thumbnail_dict["width"]
+        info[f"height_x{suffix}"] = thumbnail_dict["height"]
+
+        suffix += 1
+
+    return info
+
+
+def search_format() -> callable:
+    """Returns the formatter for the video's information.
+
+    :return: the string formatter
+    :rtype: callable
+    """
+    
+    return lambda o: f"{o['channel']['name']} - {o['title']}"

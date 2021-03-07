@@ -3,49 +3,74 @@
 """This is the main file that controls everything about the project.
 """
 
+import sys
+import constants
 import definitions
 from argparse import ArgumentParser
 import youtubesearchpython as YTS
 
+search = {
+    "video": YTS.VideosSearch,
+    "channel": YTS.ChannelsSearch,
+    "playlist": YTS.PlaylistsSearch,
+}
+info = {
+    "video": (YTS.Video.get, definitions.video_info)
+}
+
 youtube_argparser = ArgumentParser(description="""A project to easily search
         for, and download videos from youtube""")
 youtube_argparser.add_argument("action", help="the action to take (i.e search, download, etc)")
-youtube_argparser.add_argument("subcommands", nargs="*",
-                               help="extra information for an action. usually a query")
-youtube_argparser.add_argument("-t", "--title", action="store_true",
-                               help="shows the title ")
-youtube_argparser.add_argument("-l", "--link", action="store_true",
-                               help="shows the link ")
-youtube_argparser.add_argument("-u", "--uploader", action="store_true",
-                               help="shows the uploader ")
-youtube_argparser.add_argument("-v", "--views", action="store_true",
-                               help="shows the short-form views ")
-youtube_argparser.add_argument("-i", "--image", action="store_true",
-                               help="shows the thumbnail ")
-youtube_argparser.add_argument("-T", "--time", action="store_true",
-                               help="shows the published time ")
-youtube_argparser.add_argument("-L", "--length", action="store_true",
-                               help="shows the length ")
-youtube_argparser.add_argument("-V", "--no-short", action="store_true",
-                               help="Use long-form views instead of short-form")
+youtube_argparser.add_argument("query", help="arguments for the action.", nargs="*")
+youtube_argparser.add_argument("-f", "--fields", metavar="fs",
+                               help="specifies the fields to get from the video.")
+youtube_argparser.add_argument("-L", "--limit", metavar="L", help="the number of videos to find.",
+                               default=5)
+youtube_argparser.add_argument("-l", "--lang", metavar="l", help="filters the language.",
+                               default="en")
+youtube_argparser.add_argument("-r", "--region", metavar="r", help="filters the region.",
+                               default="US")
 youtube_argparser.add_argument("-m", "--no-menu", action="store_true",
                                help="disables selection of results. displays in the console instead")
+youtube_argparser.add_argument("-c", "--clipboard",
+                               help="""store output in the clipboard. requires the
+                               xclip package on Linux.""",
+                               action="store_true")
 youtube_args = youtube_argparser.parse_args()
+action = youtube_args.action.lower()
 
-print(YTS.Video.getInfo("https://www.youtube.com/watch?v=BaPoNErgdjM"))
+# Make sure there are not too many arguments passed.
+try:
+    action_arg_count = constants.ACTION_ARGS[action]
+    given_arg_count = len(youtube_args.query)
 
-#results = YTS.VideosSearch('NoCopyrightSounds', limit=2).result()["result"]
-#
-#for key, value in results[0].items():
-#    print(key, value)
+    if action_arg_count not in [-1, given_arg_count]:
+        print(f"'{action}' takes {action_arg_count} arguments. You gave {given_arg_count}.")
+        sys.exit(1)
+except KeyError:
+    print(f"{action} is not an action.")
 
-#definitions.select(results, option_format=lambda o: o["title"])
+if action == "search":
+    search_type, search_query = youtube_args.query
+    search_type = search_type.lower()
+    
+    try:
+        search_function = search[search_type]
+        limit, language, region, = int(youtube_args.limit), youtube_args.lang, youtube_args.region
+        results = search_function(search_query, limit=limit, language=language,
+                                  region=region).result()["result"]
 
-if youtube_args.action == "search":
-    search_type, query = youtube_args.subcommands
-elif youtube_args.action == "info":
-    link_type = youtube_args.subcommands[0]
-    link = youtube_args.subcommands[1]
-    info_types = youtube_args.subcommands[2:]
+        
+        _, selected_results = definitions.select(results, ">>>: ",
+                                                 definitions.search_format())
 
-    print(f"Getting {', '.join(info_types)} from {link_type} {link}")
+        for result in selected_results:
+            print(result["link"])
+    except KeyError:
+        print(f"{search_type} is not a valid search option.")
+    except ValueError as e:
+        print(e)
+
+elif action == "info":
+    pass
+
